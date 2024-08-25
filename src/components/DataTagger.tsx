@@ -182,7 +182,7 @@ const DataTagger: React.FC = () => {
           </button>
           <button
             onClick={handleTagging(JOKE_TYPE.MAMA)}
-            className="font-mono px-4 py-2 w-[150px] bg-transparent text-white font-semibold rounded-lg shadow-md border border-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+            className="font-mono px-4 py-2 w-[150px] bg-transparent text-white font-semibold rounded-lg shadow-md border border-white hover:bg-gray-700 focus:outline-none focus:ring-2  focus:ring-opacity-50"
           >
             Yo Mama Joke
           </button>
