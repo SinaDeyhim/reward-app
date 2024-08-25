@@ -22,7 +22,7 @@ const DataTagger: React.FC = () => {
   const [wallet, setWallet] = useState("");
   const [score, setScore] = useState(0);
   const [randomNumber, setRandomNumber] = useState(Math.random());
-  console.log("Component rendering");
+
   useEffect(() => {
     // Request access to the user's Ethereum account
     const fetchWalletAddress = async () => {
@@ -57,14 +57,23 @@ const DataTagger: React.FC = () => {
   const handleTagging = (tag: JOKE_TYPE) => async () => {
     setRandomNumber(Math.random());
     const diff = validateTag(tag, randomNumber) ? 10 : -10;
-    if (wallet) {
-      try {
-        await updateScore(wallet, diff);
-        // Update local state with the new score
-        setScore((prevScore) => Math.max((prevScore ?? 0) + diff, 0));
-      } catch (error) {
-        console.error("Error updating score", error);
-      }
+    let address = "";
+    if (!wallet) {
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      address = accounts[0];
+      setWallet(accounts[0]);
+    }
+
+    const walletAddress = wallet || address;
+
+    try {
+      await updateScore(walletAddress, diff);
+      // Update local state with the new score
+      setScore((prevScore) => Math.max((prevScore ?? 0) + diff, 0));
+    } catch (error) {
+      console.error("Error updating score", error);
     }
   };
 
