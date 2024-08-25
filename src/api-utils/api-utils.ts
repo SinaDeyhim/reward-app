@@ -9,7 +9,7 @@ const API_SWITCH_CUT_OFF = 0.5;
 export async function fetchDadJoke() {
   const response = await fetch("https://api.api-ninjas.com/v1/dadjokes", {
     headers: {
-      "X-Api-Key": process.env.NEXT_PUBLIC_JOKE_API,
+      "X-Api-Key": process.env.NEXT_PUBLIC_JOKE_API || "",
     },
   });
 
