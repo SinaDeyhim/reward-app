@@ -33,7 +33,7 @@ async function fetchMamaJoke() {
 }
 
 export async function getRandomJoke(value: number) {
-  if (value > API_SWITCH_CUT_OFF || true) {
+  if (value > API_SWITCH_CUT_OFF) {
     return await fetchDadJoke();
   }
   return await fetchMamaJoke();

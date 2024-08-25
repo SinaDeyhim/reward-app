@@ -5,11 +5,11 @@ import {
   validateTag,
 } from "@/api-utils/api-utils";
 import { getScore, updateScore } from "@/database/db-utils";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ethers } from "ethers";
 import { useQuery } from "react-query";
 import { getMessageHash, signMessage } from "@/contract-utils/contract-utils";
-// import { toast } from "react-toastify";
+import { toast } from "react-toastify";
 
 export enum JOKE_TYPE {
   DAD = "dad",
@@ -52,11 +52,10 @@ const DataTagger: React.FC = () => {
     queryKey: ["joke"],
     queryFn: () => getRandomJoke(randomNumber),
     refetchOnWindowFocus: false,
-    suspense: true,
   });
 
   const handleTagging = (tag: JOKE_TYPE) => async () => {
-    console.log(">>>>>>>");
+    setRandomNumber(Math.random());
     const diff = validateTag(tag, randomNumber) ? 10 : -10;
     if (wallet) {
       try {
@@ -67,80 +66,72 @@ const DataTagger: React.FC = () => {
         console.error("Error updating score", error);
       }
     }
-    setRandomNumber(Math.random());
   };
 
   useEffect(() => {
     refetch();
   }, [randomNumber, refetch]);
 
-  const redeemReward = useCallback(
-    () => async () => {
-      const prevScore = score;
-      await updateScore(wallet, -prevScore);
-      setScore(0);
-      try {
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const signer = provider.getSigner();
+  const redeemReward = async () => {
+    const prevScore = score;
+    await updateScore(wallet, -prevScore);
+    setScore(0);
+    try {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
 
-        const contractAddress =
-          process.env.NEXT_PUBLIC_CONTRACT_ADDRESS_BASE_SEPOLIA || "";
+      const contractAddress =
+        process.env.NEXT_PUBLIC_CONTRACT_ADDRESS_BASE_SEPOLIA || "";
 
-        const contract = new ethers.Contract(
-          contractAddress,
-          contractJson.abi,
-          signer
+      const contract = new ethers.Contract(
+        contractAddress,
+        contractJson.abi,
+        signer
+      );
+      const rewardClaimedFilter = contract.filters.RewardClaimed(wallet);
+
+      contract.on(rewardClaimedFilter, (user, amount, orderId) => {
+        toast.success(
+          `You have recieved ${ethers.utils.formatUnits(amount, "gwei")} gwei!`,
+          { position: "bottom-right" }
         );
-        const rewardClaimedFilter = contract.filters.RewardClaimed(wallet);
+        console.log(`Reward claimed by: ${user}`);
+        console.log(`Amount: ${ethers.utils.formatUnits(amount, "gwei")}`);
+        console.log(`Order ID: ${orderId}`);
+      });
 
-        contract.on(rewardClaimedFilter, (user, amount, orderId) => {
-          // toast.success(
-          //   `Reward claimed! Amount: ${ethers.utils.formatUnits(
-          //     amount,
-          //     "wei"
-          //   )} wei. Order ID: ${orderId}`
-          // );
-          console.log(`Reward claimed by: ${user}`);
-          console.log(`Amount: ${ethers.utils.formatUnits(amount, "wei")}`);
-          console.log(`Order ID: ${orderId}`);
-        });
+      const amount = convertPointsToWei(score);
+      const orderId = ethers.utils.formatBytes32String(
+        Math.random().toString()
+      );
 
-        const amount = convertPointsToWei(score);
-        const orderId = ethers.utils.formatBytes32String(
-          Math.random().toString()
-        );
+      const messageHash = getMessageHash(wallet, amount, orderId);
 
-        const messageHash = getMessageHash(wallet, amount, orderId);
+      const signature = await signMessage(messageHash);
 
-        const signature = await signMessage(messageHash);
+      const tx = await contract.claimReward(amount, orderId, signature, {
+        gasLimit: ethers.utils.hexlify(500000), // Adjust gas limit as needed
+      });
 
-        const tx = await contract.claimReward(amount, orderId, signature, {
-          gasLimit: ethers.utils.hexlify(500000), // Adjust gas limit as needed
-        });
+      toast.info("Transaction confirmed. Processing...", {
+        position: "bottom-right",
+      });
 
-        await tx.wait();
-      } catch (error) {
-        //   toast.error("Reward claimed faile! Your points are stored");
-        setScore(prevScore);
-        await updateScore(wallet, prevScore);
-        console.error("Error redeeming reward:", error);
-      }
-    },
-    [score, wallet]
-  );
+      await tx.wait();
+    } catch (error) {
+      toast.error("Reward claim failed! Your points are restored.");
+      setScore(prevScore);
+      await updateScore(wallet, prevScore);
+      console.error("Error redeeming reward:", error);
+    }
+  };
 
   const disabled = useMemo(() => {
     return score < 100;
   }, [score]);
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col items-center min-h-screen p-4 w-full">
-        <p className="text-xl m-4 mb-10 font-bold p-6 w-[500px] min-h-[200px] border-2 border-gray-300  shadow-lg rounded">
-          Loading...
-        </p>
-      </div>
-    );
+    return <TaggerLaoding />;
   }
 
   if (isError) {
@@ -193,3 +184,38 @@ const DataTagger: React.FC = () => {
 };
 
 export default DataTagger;
+
+const TaggerLaoding = () => {
+  return (
+    <div className="flex flex-col items-center min-h-screen p-4 w-full">
+      <div className="flex flex-col justify-start w-[600px] my-10 font-mono">
+        <div className="text-xl font-bold animate-pulse bg-gray-300 h-8 w-32 rounded"></div>
+        <div className="font-mono text-md text-slate-500 animate-pulse bg-gray-300 h-6 w-72 rounded mt-2"></div>
+        <div className="font-mono text-md text-slate-500 animate-pulse bg-gray-300 h-6 w-72 rounded mt-2"></div>
+        <button
+          disabled
+          className="font-mono px-4 py-2 mt-4 bg-gray-300 text-transparent font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+        >
+          Loading...
+        </button>
+      </div>
+      <div className="flex flex-col text-xl m-10 mt-0 font-mono p-6 w-[600px] min-w-[600px] min-h-[240px] border-2 border-gray-300 shadow-lg rounded justify-between">
+        <div className="animate-pulse bg-gray-300 h-8 w-full rounded"></div>
+        <div className="flex text-base justify-between mt-6">
+          <button
+            disabled
+            className="font-mono px-4 py-2 w-[150px] bg-cyan-300 text-transparent font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+          >
+            Dad Joke
+          </button>
+          <button
+            disabled
+            className="font-mono px-4 py-2 w-[150px] bg-gray-300 text-transparent font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+          >
+            Yo Mama Joke
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
