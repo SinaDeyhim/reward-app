@@ -10,7 +10,6 @@ import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import type { AppProps } from "next/app";
 import React from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { Web3Provider } from "@/providers/Web3Provider";
 import { ToastContainer } from "react-toastify";
 
 const config = getDefaultConfig({
@@ -26,14 +25,12 @@ function MyApp({ Component, pageProps }: AppProps) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider>
-          <Web3Provider>
-            <ErrorBoundary>
-              <>
-                <Component {...pageProps} />
-                <ToastContainer />
-              </>
-            </ErrorBoundary>
-          </Web3Provider>
+          <ErrorBoundary>
+            <>
+              <Component {...pageProps} />
+              <ToastContainer />
+            </>
+          </ErrorBoundary>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>
